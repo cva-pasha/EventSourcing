@@ -1,0 +1,29 @@
+@baseUrl = https://localhost:44390
+
+### Commands - Execute and Wait Response
+
+GET {{baseUrl}}/commands/execute-and-wait-response
+
+### Commands - Execute and No Wait
+
+GET {{baseUrl}}/commands/execute-and-no-wait
+
+### Commands - Execute all concurrent and Wait
+
+GET {{baseUrl}}/commands/concurrent/execute-and-wait-all?count=5
+
+### Commands - Execute all concurrent and No Wait
+
+GET {{baseUrl}}/commands/concurrent/execute-all-and-no-wait?count=5
+
+### Events - Publish and Wait Execution
+
+GET {{baseUrl}}/events/publish-and-wait-execution
+
+### Events - Publish and No Wait Execution
+
+GET {{baseUrl}}/events/publish-and-no-wait-execution
+
+### Queries - Publish all concurrent and Wait Execution
+
+GET {{baseUrl}}/queries/execute-async

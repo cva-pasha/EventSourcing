@@ -91,7 +91,7 @@ public static class EventSourcingExtensions
         services.AddSingleton<IEventBus, EventBus>();
         services.AddSingleton<ICommandBus, CommandBus>();
         services.UseEventSourcing();
-
+        
         var logger = EventSourcingContext.Logger;
         var loggerEnabled = logger.IsEnabled(LogLevel.Debug);
         var sw = new Stopwatch();
@@ -108,8 +108,11 @@ public static class EventSourcingExtensions
             .Distinct()
             .SelectMany(t => t.GetTypes())
             .Where(t => t is { IsInterface: false, IsAbstract: false, IsPublic: true })
-            .SelectMany(t => t.GetInterfaces(), (implementationType, serviceType) =>
-                new ServiceDescriptor(serviceType, implementationType, lifetime))
+            .SelectMany(
+                t => t.GetInterfaces(),
+                (implementationType, serviceType) =>
+                    new ServiceDescriptor(serviceType, implementationType, lifetime)
+            )
             .Where(t => t.ServiceType.IsGenericType)
             .ToList();
 
@@ -122,10 +125,15 @@ public static class EventSourcingExtensions
 
         if (loggerEnabled)
         {
-            logger.LogDebug("Finished to register {Count} handlers in {ElapsedMilliseconds} ms.",
-                counter, sw.ElapsedMilliseconds);
+            logger.LogDebug(
+                message: "Finished to register {Count} handlers in {ElapsedMilliseconds} ms.",
+                counter,
+                sw.ElapsedMilliseconds
+            );
         }
-        
+
+        services.UseEventSourcing();
+
         return services;
     }
 
@@ -153,8 +161,7 @@ public static class EventSourcingExtensions
         };
 
         var handlers = handlerServices
-            .Where(t => genericTypes.Exists(
-                x => x == t.ServiceType.GetGenericTypeDefinition()))
+            .Where(t => genericTypes.Exists(x => x == t.ServiceType.GetGenericTypeDefinition()))
             .ToList();
 
         for (var index = 0; index < handlers.Count; index++)
@@ -164,8 +171,11 @@ public static class EventSourcingExtensions
 
             if (loggerEnabled)
             {
-                logger.LogDebug("Registered command handler[{Count}]: {HandlerName}",
-                    index, handler.ImplementationType?.FullName);
+                logger.LogDebug(
+                    message: "Registered command handler[{Count}]: {HandlerName}",
+                    index,
+                    handler.ImplementationType?.FullName
+                );
             }
         }
 
@@ -195,8 +205,7 @@ public static class EventSourcingExtensions
         };
 
         var handlers = handlerServices
-            .Where(t => genericTypes.Exists(
-                x => x == t.ServiceType.GetGenericTypeDefinition()))
+            .Where(t => genericTypes.Exists(x => x == t.ServiceType.GetGenericTypeDefinition()))
             .ToList();
 
         for (var index = 0; index < handlers.Count; index++)
@@ -204,8 +213,11 @@ public static class EventSourcingExtensions
             var handler = handlers[index];
             services.TryAdd(handler);
             if (loggerEnabled)
-                logger.LogDebug("Registered concurrent command handler[{Count}]: {HandlerName}",
-                    index, handler.ImplementationType?.FullName);
+                logger.LogDebug(
+                    message: "Registered concurrent command handler[{Count}]: {HandlerName}",
+                    index,
+                    handler.ImplementationType?.FullName
+                );
         }
 
         return handlers.Count;
@@ -238,8 +250,11 @@ public static class EventSourcingExtensions
             var handler = handlers[index];
             services.TryAdd(handler);
             if (loggerEnabled)
-                logger.LogDebug("Registered event handler[{Count}]: {HandlerName}",
-                    index, handler.ImplementationType?.FullName);
+                logger.LogDebug(
+                    message: "Registered event handler[{Count}]: {HandlerName}",
+                    index,
+                    handler.ImplementationType?.FullName
+                );
         }
 
         return handlers.Count;
@@ -268,20 +283,19 @@ public static class EventSourcingExtensions
         };
 
         var handlers = handlerServices
-            .Where(t => genericTypes.Exists(
-                x => x == t.ServiceType.GetGenericTypeDefinition()))
+            .Where(t => genericTypes.Exists(x => x == t.ServiceType.GetGenericTypeDefinition()))
             .ToList();
 
         for (var index = 0; index < handlers.Count; index++)
         {
             var handler = handlers[index];
             services.TryAdd(handler);
-            
+
             if (loggerEnabled)
             {
                 logger.LogDebug(
-                    "Registered query handler[{Count}]: {HandlerName}",
-                    index, 
+                    message: "Registered query handler[{Count}]: {HandlerName}",
+                    index,
                     handler.ImplementationType?.FullName
                 );
             }
@@ -304,11 +318,17 @@ public static class EventSourcingExtensions
             .Distinct()
             .SelectMany(t => t.GetTypes())
             .Where(t => t is { IsInterface: false, IsAbstract: false })
-            .SelectMany(t => t.GetInterfaces(), (implementationType, serviceType)
-                => new ServiceDescriptor(serviceType, implementationType, lifetime))
+            .SelectMany(
+                t => t.GetInterfaces(),
+                (implementationType, serviceType)
+                    => new ServiceDescriptor(serviceType, implementationType, lifetime)
+            )
             .Where(t => t.ServiceType.IsGenericType)
-            .Where(t => Array.Exists(genericTypes,
-                x => x == t.ServiceType.GetGenericTypeDefinition()));
+            .Where(t => Array.Exists(
+                    genericTypes,
+                    x => x == t.ServiceType.GetGenericTypeDefinition()
+                )
+            );
 
         foreach (var handler in handlers)
         {
@@ -478,12 +498,14 @@ public static class EventSourcingExtensions
         if (handlers.Count == 0)
         {
             throw new InvalidOperationException(
-                $"Handler for concurrent command type {type.Name} not registered.");
+                $"Handler for concurrent command type {type.Name} not registered."
+            );
         }
 
         var tasks = handlers
             .Select(handler => (Task<TResult>)ConcurrentCommandBus
-                .ExecuteAsync(type, command, handler, ct))
+                .ExecuteAsync(type, command, handler, ct)
+            )
             .ToList();
 
         var firstCompletedTask = await Task.WhenAny(tasks);

@@ -24,41 +24,66 @@ app.UseHttpsRedirection();
 
 #region [ Commands ]
 
-app.MapGet("/commands/execute-async", async (int number, CancellationToken ct) =>
-    {
-        return await new SampleCommand(number).ExecuteAsync(ct);
-    })
+app.MapGet(
+        pattern: "/commands/execute-and-wait-response",
+        async (CancellationToken ct) =>
+        {
+            return await new SampleCommand(1).ExecuteAsync(ct);
+        }
+    )
     .WithName("ExecuteCommandAsync")
     .WithOpenApi();
 
-app.MapGet("/commands/execute", (int number) =>
-    {
-        new SampleCommand(number).Execute();
-    })
+app.MapGet(
+        pattern: "/commands/execute-and-no-wait",
+        () =>
+        {
+            new SampleCommand(1).Execute();
+        }
+    )
     .WithName("ExecuteCommand")
     .WithOpenApi();
 
-app.MapGet("/commands/concurrent/execute-async", async (int number, int count, CancellationToken ct) =>
-    {
-        var tasks = new List<Task<BaseResult>>();
-
-        for (var i = 0; i < count; i++)
+app.MapGet(
+        pattern: "/commands/concurrent/execute-and-wait-all",
+        async (int count, CancellationToken ct) =>
         {
-            tasks.Add(new ConcurrentCommand(number++).ExecuteAsync(ct));
-        }
+            var tasks = new List<Task<BaseResult>>();
+            var number = 0;
 
-        return await Task.WhenAll(tasks);
-    })
+            for (var i = 0; i < count; i++)
+            {
+                ++number;
+
+                tasks.Add(
+                    new ConcurrentCommand(number)
+                        .ExecuteAsync(ct)
+                        .WithWatcher($"{nameof(ConcurrentCommand)}_{number}", LogLevel.Information)
+                );
+            }
+
+            return await Task.WhenAll(tasks);
+        }
+    )
     .WithName("ExecuteConcurrentCommandAsync")
     .WithOpenApi();
 
-app.MapGet("/commands/concurrent/execute", (int number, int count) =>
-    {
-        Parallel.For(0, count, (_) =>
+app.MapGet(
+        pattern: "/commands/concurrent/execute-all-and-no-wait",
+        (int count) =>
         {
-            new ConcurrentCommand(number++).Execute();
-        });
-    })
+            var number = 0;
+
+            Parallel.For(
+                fromInclusive: 0,
+                count,
+                _ =>
+                {
+                    new ConcurrentCommand(++number).Execute();
+                }
+            );
+        }
+    )
     .WithName("ExecuteConcurrentCommand")
     .WithOpenApi();
 
@@ -66,23 +91,39 @@ app.MapGet("/commands/concurrent/execute", (int number, int count) =>
 
 #region [ Events ]
 
-app.MapGet("/events/publish-async", async (int number) =>
-    {
-        await new SampleEvent(number).PublishAsync();
-    })
+app.MapGet(
+        pattern: "/events/publish-and-wait-execution",
+        async () =>
+        {
+            await new SampleEvent(1).PublishAsync();
+        }
+    )
     .WithName("PublishEventAsync")
+    .WithOpenApi();
+
+app.MapGet(
+        pattern: "/events/publish-and-no-wait-execution",
+        () =>
+        {
+            new SampleEvent(1).Publish();
+        }
+    )
+    .WithName("PublishEvent")
     .WithOpenApi();
 
 #endregion
 
 #region [ Queries ]
 
-app.MapGet("/queries/execute-async", async (int number) =>
-    {
-        return await new SampleQuery(number)
-            .ExecuteAsync()
-            .WithWatcher(nameof(SampleQuery), LogLevel.Information);
-    })
+app.MapGet(
+        pattern: "/queries/execute-async",
+        async () =>
+        {
+            return await new SampleQuery(1)
+                .ExecuteAsync()
+                .WithWatcher(nameof(SampleQuery), LogLevel.Information);
+        }
+    )
     .WithName("ExecuteQueryAsync")
     .WithOpenApi();
 
