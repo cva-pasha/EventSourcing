@@ -3,9 +3,11 @@ using EventSourcing.Commands;
 
 namespace EventSourcing.Api.Commands;
 
-public record SampleCommand(int Number) : ICommand<BaseResult>;
+public record SampleCommand(
+    int Number
+) : ICommand<BaseResult>;
 
-public sealed class SampleCommandHandler(
+internal sealed class SampleCommandHandler(
     ILogger<SampleCommandHandler> logger
 )
     : ICommandHandler<SampleCommand, BaseResult>
@@ -18,8 +20,8 @@ public sealed class SampleCommandHandler(
     }
 }
 
-public sealed class AnotherSampleCommandHandler(
-    ILogger<SampleCommandHandler> logger
+internal sealed class AnotherSampleCommandHandler(
+    ILogger<AnotherSampleCommandHandler> logger
 )
     : ICommandHandler<SampleCommand, BaseResult>
 {

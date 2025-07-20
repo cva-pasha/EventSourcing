@@ -91,7 +91,7 @@ public static class EventSourcingExtensions
         services.AddSingleton<IEventBus, EventBus>();
         services.AddSingleton<ICommandBus, CommandBus>();
         services.UseEventSourcing();
-        
+
         var logger = EventSourcingContext.Logger;
         var loggerEnabled = logger.IsEnabled(LogLevel.Debug);
         var sw = new Stopwatch();
@@ -107,7 +107,7 @@ public static class EventSourcingExtensions
             .Select(t => t.Assembly)
             .Distinct()
             .SelectMany(t => t.GetTypes())
-            .Where(t => t is { IsInterface: false, IsAbstract: false, IsPublic: true })
+            .Where(t => t is { IsInterface: false, IsAbstract: false })
             .SelectMany(
                 t => t.GetInterfaces(),
                 (implementationType, serviceType) =>

@@ -1,4 +1,4 @@
-@baseUrl = https://localhost:44390
+@baseUrl = https://localhost:7205
 
 ### Commands - Execute and Wait Response
 
