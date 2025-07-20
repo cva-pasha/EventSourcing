@@ -1,4 +1,6 @@
-﻿using EventSourcing.Events;
+﻿using System.Collections.Concurrent;
+using System.Reflection;
+using EventSourcing.Events;
 using EventSourcing.Tests.Unit.Events.Stubs;
 
 namespace EventSourcing.Tests.Unit.Events;
@@ -16,8 +18,12 @@ public class EventBusTests
         eventBus.Subscribe(handlerMock.Object);
 
         // Assert
-        // The handler should be registered without any exception.
-        Assert.True(true);
+        var handlersField = typeof(EventBus).GetField(name: "_handlers", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handlers = (ConcurrentDictionary<string, List<object>>?)handlersField?.GetValue(eventBus);
+
+        Assert.NotNull(handlers);
+        Assert.True(handlers.ContainsKey(nameof(SampleEvent)));
+        Assert.Single(handlers[nameof(SampleEvent)]);
     }
 
     [Fact]
@@ -40,7 +46,8 @@ public class EventBusTests
         var eventModel = new SampleEvent();
 
         handlerMock.Setup(e =>
-                e.HandleAsync(It.IsAny<SampleEvent>()))
+                e.HandleAsync(It.IsAny<SampleEvent>())
+            )
             .Returns(Task.CompletedTask);
 
         eventBus.Subscribe(handlerMock.Object);
@@ -49,8 +56,11 @@ public class EventBusTests
         await eventBus.PublishAsync(eventModel);
 
         // Assert
-        handlerMock.Verify(e =>
-            e.HandleAsync(eventModel), Times.Once);
+        handlerMock.Verify(
+            e =>
+                e.HandleAsync(eventModel),
+            Times.Once
+        );
     }
 
     [Fact]
@@ -73,7 +83,8 @@ public class EventBusTests
         var eventModel = new SampleEvent();
 
         handlerMock.Setup(e =>
-                e.HandleAsync(It.IsAny<SampleEvent>()))
+                e.HandleAsync(It.IsAny<SampleEvent>())
+            )
             .Returns(Task.CompletedTask);
 
         eventBus.Subscribe(handlerMock.Object);
@@ -84,7 +95,10 @@ public class EventBusTests
         await Task.Delay(100);
 
         // Assert
-        handlerMock.Verify(e =>
-            e.HandleAsync(eventModel), Times.Once);
+        handlerMock.Verify(
+            e =>
+                e.HandleAsync(eventModel),
+            Times.Once
+        );
     }
 }

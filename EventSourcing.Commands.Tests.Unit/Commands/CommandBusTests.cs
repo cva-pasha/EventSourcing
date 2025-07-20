@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Reflection;
 using EventSourcing.Commands;
 using EventSourcing.Tests.Unit.Commands.Stubs;
 
@@ -18,8 +20,11 @@ public class CommandBusTests
         commandBus.Subscribe(handlerMock.Object);
 
         // Assert
-        // The handler should be registered without any exception.
-        Assert.True(true);
+        var handlersField = typeof(CommandBus).GetField(name: "_handlers", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handlers = (ConcurrentDictionary<string, object>?)handlersField?.GetValue(commandBus);
+
+        Assert.NotNull(handlers);
+        Assert.True(handlers.ContainsKey(nameof(SampleCommand)));
     }
 
     [Fact]
@@ -32,7 +37,7 @@ public class CommandBusTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => commandBus.Subscribe(handler));
     }
-
+    
     #endregion
 
     #region [ ExecuteAsync ]
@@ -46,7 +51,8 @@ public class CommandBusTests
         var command = new SampleCommand();
 
         handlerMock.Setup(e =>
-                e.HandleAsync(It.IsAny<SampleCommand>(), It.IsAny<CancellationToken>()))
+                e.HandleAsync(It.IsAny<SampleCommand>(), It.IsAny<CancellationToken>())
+            )
             .Returns(Task.CompletedTask);
 
         commandBus.Subscribe(handlerMock.Object);
@@ -55,8 +61,11 @@ public class CommandBusTests
         await commandBus.ExecuteAsync(command);
 
         // Assert
-        handlerMock.Verify(e =>
-            e.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
+        handlerMock.Verify(
+            e =>
+                e.HandleAsync(command, It.IsAny<CancellationToken>()),
+            Times.Once
+        );
     }
 
     [Fact]
@@ -94,7 +103,8 @@ public class CommandBusTests
         var command = new SampleCommand();
 
         handlerMock.Setup(e =>
-                e.HandleAsync(It.IsAny<SampleCommand>(), It.IsAny<CancellationToken>()))
+                e.HandleAsync(It.IsAny<SampleCommand>(), It.IsAny<CancellationToken>())
+            )
             .Returns(Task.CompletedTask);
 
         commandBus.Subscribe(handlerMock.Object);
@@ -105,8 +115,11 @@ public class CommandBusTests
         await Task.Delay(100);
 
         // Assert
-        handlerMock.Verify(e =>
-            e.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
+        handlerMock.Verify(
+            e =>
+                e.HandleAsync(command, It.IsAny<CancellationToken>()),
+            Times.Once
+        );
     }
 
     [Fact]

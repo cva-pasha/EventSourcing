@@ -166,6 +166,31 @@ public class ConcurrentCommandBusTests
         Assert.Equal(expectedConcurrentCount, semaphore.CurrentCount);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithRegisteredHandler_ShouldInvokeAndReturnResult()
+    {
+        // Arrange
+        var command = new ConcurrentSampleCommand();
+        var expectedResult = new SampleResult();
+        var handlerMock = new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
+        handlerMock.Setup(h => h.ConcurrentCount).Returns(1);
+
+        handlerMock
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResult);
+
+        var serviceProvider = new ServiceCollection()
+            .AddSingleton(handlerMock.Object)
+            .BuildServiceProvider();
+
+        // Act
+        var result = await command.ExecuteAsync(serviceProvider);
+
+        // Assert
+        handlerMock.Verify(h => h.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(expectedResult, result);
+    }
+
     #endregion
 
     #region [ Execute ]
