@@ -3,9 +3,13 @@ using EventSourcing.Commands.Concurrent;
 
 namespace EventSourcing.Api.Commands;
 
-public record ConcurrentCommand(int Number) : IConcurrentCommand<BaseResult>;
+public record ConcurrentCommand(
+    int Number
+) : IConcurrentCommand<BaseResult>;
 
-public sealed class ConcurrentCommandHandler(ILogger<ConcurrentCommandHandler> logger)
+internal sealed class ConcurrentCommandHandler(
+    ILogger<ConcurrentCommandHandler> logger
+)
     : IConcurrentCommandHandler<ConcurrentCommand, BaseResult>
 {
     public int ConcurrentCount { get; init; } = 1;
@@ -19,7 +23,9 @@ public sealed class ConcurrentCommandHandler(ILogger<ConcurrentCommandHandler> l
     }
 }
 
-public sealed class AnotherConcurrentCommandHandler(ILogger<ConcurrentCommandHandler> logger)
+internal sealed class AnotherConcurrentCommandHandler(
+    ILogger<AnotherConcurrentCommandHandler> logger
+)
     : IConcurrentCommandHandler<ConcurrentCommand, BaseResult>
 {
     public int ConcurrentCount { get; init; } = 2;

@@ -18,8 +18,6 @@ namespace EventSourcing.Extensions;
 /// </summary>
 public static class EventSourcingExtensions
 {
-    internal static readonly ConcurrentCommandBus ConcurrentCommandBus = new();
-
     /// <summary>
     ///     Register handlers in the dependency injection container.
     /// </summary>
@@ -463,56 +461,7 @@ public static class EventSourcingExtensions
     )
     {
         ArgumentNullException.ThrowIfNull(command);
-        return await ExecuteAsync(command, EventSourcingContext.ServiceProvider, ct);
-    }
-
-    /// <summary>
-    ///     Executes a concurrent command that returns a result.
-    /// </summary>
-    /// <typeparam name="TResult">
-    ///     The type of the result returned by the command execution.
-    /// </typeparam>
-    /// <param name="command">The concurrent command to be executed.</param>
-    /// <param name="serviceProvider">The service provider.</param>
-    /// <param name="ct">Optional <see cref="CancellationToken" /> to cancel the execution.</param>
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="InvalidOperationException" />
-    public static async Task<TResult> ExecuteAsync<TResult>(
-        this IConcurrentCommand<TResult> command,
-        IServiceProvider serviceProvider,
-        CancellationToken ct = default
-    )
-    {
-        ArgumentNullException.ThrowIfNull(command);
-        ArgumentNullException.ThrowIfNull(serviceProvider);
-
-        var type = command.GetType();
-
-        var handlerType = typeof(IConcurrentCommandHandler<,>)
-            .MakeGenericType(type, typeof(TResult));
-
-        List<dynamic> handlers = serviceProvider.GetServices(handlerType)
-            .Where(handler => handler!.GetType().IsPublic)
-            .ToList()!;
-
-        if (handlers.Count == 0)
-        {
-            throw new InvalidOperationException(
-                $"Handler for concurrent command type {type.Name} not registered."
-            );
-        }
-
-        var tasks = handlers
-            .Select(handler => (Task<TResult>)ConcurrentCommandBus
-                .ExecuteAsync(type, command, handler, ct)
-            )
-            .ToList();
-
-        var firstCompletedTask = await Task.WhenAny(tasks);
-
-        await Task.WhenAll(tasks);
-
-        return await firstCompletedTask;
+        return await command.ExecuteAsync(EventSourcingContext.ServiceProvider, ct);
     }
 
     /// <summary>
@@ -545,7 +494,7 @@ public static class EventSourcingExtensions
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(serviceProvider);
-        Task.Run(async () => { await ExecuteAsync(command, serviceProvider); });
+        Task.Run(async () => { await command.ExecuteAsync(serviceProvider); });
     }
 
     #endregion

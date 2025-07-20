@@ -50,8 +50,11 @@ public class ConcurrentCommandBusTests
         var command = new ConcurrentSampleCommand();
 
         handlerMock.Setup(e =>
-                e.HandleAsync(It.IsAny<ConcurrentSampleCommand>(),
-                    It.IsAny<CancellationToken>()))
+                e.HandleAsync(
+                    It.IsAny<ConcurrentSampleCommand>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
             .ReturnsAsync(expectedResult);
 
         commandBus.Subscribe(handlerMock.Object);
@@ -61,8 +64,11 @@ public class ConcurrentCommandBusTests
             .ExecuteAsync<ConcurrentSampleCommand, SampleResult>(command);
 
         // Assert
-        handlerMock.Verify(e =>
-            e.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
+        handlerMock.Verify(
+            e =>
+                e.HandleAsync(command, It.IsAny<CancellationToken>()),
+            Times.Once
+        );
 
         Assert.Equal(expectedResult, result);
     }
@@ -76,7 +82,8 @@ public class ConcurrentCommandBusTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            commandBus.ExecuteAsync<ConcurrentSampleCommand, SampleResult>(command));
+            commandBus.ExecuteAsync<ConcurrentSampleCommand, SampleResult>(command)
+        );
     }
 
     [Fact]
@@ -88,7 +95,8 @@ public class ConcurrentCommandBusTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            commandBus.ExecuteAsync<ConcurrentSampleCommand, SampleResult>(command));
+            commandBus.ExecuteAsync<ConcurrentSampleCommand, SampleResult>(command)
+        );
     }
 
     [Fact]
@@ -106,13 +114,17 @@ public class ConcurrentCommandBusTests
             .Returns(expectedConcurrentCount);
 
         handlerMock.Setup(e =>
-                e.HandleAsync(It.IsAny<ConcurrentSampleCommand>(),
-                    It.IsAny<CancellationToken>()))
+                e.HandleAsync(
+                    It.IsAny<ConcurrentSampleCommand>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
             .Returns(async (ConcurrentSampleCommand _, CancellationToken ct) =>
-            {
-                await Task.Delay(1000, ct);
-                return new SampleResult();
-            });
+                {
+                    await Task.Delay(millisecondsDelay: 1000, ct);
+                    return new SampleResult();
+                }
+            );
 
         commandBus.Subscribe(handlerMock.Object);
 
@@ -128,20 +140,22 @@ public class ConcurrentCommandBusTests
 
         // Assert
         var concurrentHandlerField = typeof(ConcurrentCommandBus)
-            .GetField("_handlers",
+            .GetField(
+                name: "_handlers",
                 BindingFlags.NonPublic
-                | BindingFlags.Instance);
+                | BindingFlags.Instance
+            );
 
         Assert.NotNull(concurrentHandlerField);
 
         var handlers = (ConcurrentDictionary<string, ConcurrentHandler>?)concurrentHandlerField
-            .GetValue(commandBus);
+            .GetValue(commandBus.GetType().FullName);
 
         Assert.NotNull(handlers);
 
         var semaphore = handlers[nameof(ConcurrentSampleCommand)].Semaphore;
 
-        Assert.Equal(0, semaphore.CurrentCount);
+        Assert.Equal(expected: 0, semaphore.CurrentCount);
         await Task.WhenAll(tasks);
     }
 
@@ -159,8 +173,11 @@ public class ConcurrentCommandBusTests
         var command = new ConcurrentSampleCommand();
 
         handlerMock.Setup(e =>
-                e.HandleAsync(It.IsAny<ConcurrentSampleCommand>(),
-                    It.IsAny<CancellationToken>()))
+                e.HandleAsync(
+                    It.IsAny<ConcurrentSampleCommand>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
             .ReturnsAsync(expectedResult);
 
         commandBus.Subscribe(handlerMock.Object);
@@ -171,8 +188,11 @@ public class ConcurrentCommandBusTests
         await Task.Delay(100);
 
         // Assert
-        handlerMock.Verify(e =>
-            e.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
+        handlerMock.Verify(
+            e =>
+                e.HandleAsync(command, It.IsAny<CancellationToken>()),
+            Times.Once
+        );
     }
 
     [Fact]
@@ -184,7 +204,8 @@ public class ConcurrentCommandBusTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            commandBus.Execute<ConcurrentSampleCommand, SampleResult>(command));
+            commandBus.Execute<ConcurrentSampleCommand, SampleResult>(command)
+        );
     }
 
     #endregion

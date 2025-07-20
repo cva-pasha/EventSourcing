@@ -1,5 +1,5 @@
 ﻿using EventSourcing.Commands.Concurrent;
-using EventSourcing.Extensions;
+using EventSourcing.Commands.Extensions;
 using EventSourcing.Tests.Unit.Commands.Stubs;
 
 namespace EventSourcing.Tests.Unit.Commands.Concurrent;
@@ -17,7 +17,8 @@ public class DiConcurrentCommandTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            command.ExecuteAsync(mockServiceProvider.Object));
+            command.ExecuteAsync(mockServiceProvider.Object)
+        );
     }
 
     [Fact]
@@ -29,7 +30,8 @@ public class DiConcurrentCommandTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            command.ExecuteAsync(serviceProvider));
+            command.ExecuteAsync(serviceProvider)
+        );
     }
 
     [Fact]
@@ -42,12 +44,14 @@ public class DiConcurrentCommandTests
 
         mockServiceProvider
             .Setup(e =>
-                e.GetService(typeof(IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>)))
+                e.GetService(typeof(IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>))
+            )
             .Returns(handler);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            command.ExecuteAsync(mockServiceProvider.Object));
+            command.ExecuteAsync(mockServiceProvider.Object)
+        );
     }
 
     #endregion
@@ -63,7 +67,8 @@ public class DiConcurrentCommandTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            command.Execute(mockServiceProvider.Object));
+            command.Execute(mockServiceProvider.Object)
+        );
     }
 
     [Fact]
@@ -75,7 +80,8 @@ public class DiConcurrentCommandTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            command.Execute(serviceProvider));
+            command.Execute(serviceProvider)
+        );
     }
 
     #endregion

@@ -16,7 +16,8 @@ public sealed class QueryTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await query.ExecuteAsync(serviceProvider));
+            await query.ExecuteAsync(serviceProvider)
+        );
     }
 
     [Fact]
@@ -28,7 +29,8 @@ public sealed class QueryTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await query.ExecuteAsync(serviceProvider));
+            await query.ExecuteAsync(serviceProvider)
+        );
     }
 
     [Fact]
@@ -40,7 +42,8 @@ public sealed class QueryTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await query.ExecuteAsync(serviceProvider));
+            await query.ExecuteAsync(serviceProvider)
+        );
     }
 
     [Fact]
@@ -56,22 +59,27 @@ public sealed class QueryTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await query.ExecuteAsync(serviceProvider));
+            await query.ExecuteAsync(serviceProvider)
+        );
     }
 
     [Fact]
-    public async Task ExecuteAsync_NonPublicHandler_ThrowsInvalidOperationException()
+    public async Task ExecuteAsync_NonPublicHandler_CallsHandleAsync()
     {
         // Arrange
         var query = new TestQuery();
+        var nonPublicHandler = new NonPublicQueryHandler();
 
         var serviceProvider = new ServiceCollection()
-            .AddSingleton<IQueryHandler<TestQuery, string>, NonPublicQueryHandler>()
+            .AddSingleton<IQueryHandler<TestQuery, string>, NonPublicQueryHandler>(_ => nonPublicHandler)
             .BuildServiceProvider();
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await query.ExecuteAsync(serviceProvider));
+        // Act
+        var result = await query.ExecuteAsync(serviceProvider);
+
+        // Assert
+        Assert.Equal(expected: "TestResult", result);
+        Assert.Equal(expected: 1, nonPublicHandler.InvokeCount);
     }
 
     [Fact]
@@ -80,6 +88,7 @@ public sealed class QueryTests
         // Arrange
         var query = new TestQuery();
         var handlerMock = new Mock<IQueryHandler<TestQuery, string>>();
+
         handlerMock
             .Setup(x => x.HandleAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync("TestResult");
@@ -92,7 +101,7 @@ public sealed class QueryTests
         var result = await query.ExecuteAsync(serviceProvider);
 
         // Assert
-        Assert.Equal("TestResult", result);
+        Assert.Equal(expected: "TestResult", result);
         handlerMock.Verify(x => x.HandleAsync(query, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

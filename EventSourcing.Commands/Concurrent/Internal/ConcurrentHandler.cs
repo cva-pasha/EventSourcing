@@ -1,3 +1,9 @@
-﻿namespace EventSourcing.Commands.Concurrent.Internal;
+﻿using System.Reflection;
 
-internal sealed record ConcurrentHandler(object Handler, SemaphoreSlim Semaphore);
+namespace EventSourcing.Commands.Concurrent.Internal;
+
+internal sealed record ConcurrentHandler(
+    object Handler,
+    Type CommandType,
+    SemaphoreSlim Semaphore
+);

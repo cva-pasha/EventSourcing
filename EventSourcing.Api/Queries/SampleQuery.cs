@@ -3,9 +3,11 @@ using EventSourcing.Queries;
 
 namespace EventSourcing.Api.Queries;
 
-public record SampleQuery(int Number) : IQuery<BaseResult>;
+public record SampleQuery(
+    int Number
+) : IQuery<BaseResult>;
 
-public sealed class SampleQueryHandler(
+internal sealed class SampleQueryHandler(
     ILogger<SampleQueryHandler> logger
 )
     : IQueryHandler<SampleQuery, BaseResult>
@@ -19,13 +21,13 @@ public sealed class SampleQueryHandler(
 }
 
 internal sealed class AnotherSampleQueryHandler(
-    ILogger<SampleQueryHandler> logger
+    ILogger<AnotherSampleQueryHandler> logger
 )
     : IQueryHandler<SampleQuery, BaseResult>
 {
     public Task<BaseResult> HandleAsync(SampleQuery query, CancellationToken ct = default)
     {
-        var message = $"{nameof(SampleQueryHandler)} with number: {query.Number} handled at {DateTime.Now:HH:mm:ss.fff}";
+        var message = $"{nameof(AnotherSampleQueryHandler)} with number: {query.Number} handled at {DateTime.Now:HH:mm:ss.fff}";
         logger.LogInformation(message);
         return Task.FromResult(new BaseResult(query.Number, message));
     }
