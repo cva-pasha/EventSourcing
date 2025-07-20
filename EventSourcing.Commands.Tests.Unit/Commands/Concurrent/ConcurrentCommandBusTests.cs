@@ -2,7 +2,9 @@
 using System.Reflection;
 using EventSourcing.Commands.Concurrent;
 using EventSourcing.Commands.Concurrent.Internal;
+using EventSourcing.Commands.Extensions;
 using EventSourcing.Tests.Unit.Commands.Stubs;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EventSourcing.Tests.Unit.Commands.Concurrent;
 
@@ -21,8 +23,13 @@ public class ConcurrentCommandBusTests
         commandBus.Subscribe(handlerMock.Object);
 
         // Assert
-        // The handler should be registered without any exception.
-        Assert.True(true);
+        var handlersField = typeof(ConcurrentCommandBus)
+            .GetField(name: "_handlers", BindingFlags.NonPublic | BindingFlags.Instance);
+
+        var handlers = (ConcurrentDictionary<string, ConcurrentHandler>?)handlersField?.GetValue(commandBus);
+
+        Assert.NotNull(handlers);
+        Assert.True(handlers.ContainsKey(typeof(ConcurrentSampleCommand).FullName!));
     }
 
     [Fact]
@@ -105,20 +112,11 @@ public class ConcurrentCommandBusTests
         // Arrange
         const int expectedConcurrentCount = 2;
 
-        var commandBus = new ConcurrentCommandBus();
         var command = new ConcurrentSampleCommand();
         var handlerMock = new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
-
+        handlerMock.Setup(e => e.ConcurrentCount).Returns(expectedConcurrentCount);
         handlerMock
-            .Setup(e => e.ConcurrentCount)
-            .Returns(expectedConcurrentCount);
-
-        handlerMock.Setup(e =>
-                e.HandleAsync(
-                    It.IsAny<ConcurrentSampleCommand>(),
-                    It.IsAny<CancellationToken>()
-                )
-            )
+            .Setup(e => e.HandleAsync(It.IsAny<ConcurrentSampleCommand>(), It.IsAny<CancellationToken>()))
             .Returns(async (ConcurrentSampleCommand _, CancellationToken ct) =>
                 {
                     await Task.Delay(millisecondsDelay: 1000, ct);
@@ -126,37 +124,46 @@ public class ConcurrentCommandBusTests
                 }
             );
 
-        commandBus.Subscribe(handlerMock.Object);
+        var serviceProvider = new ServiceCollection()
+            .AddSingleton(handlerMock.Object)
+            .BuildServiceProvider();
 
         // Act
         var tasks = new[]
         {
-            commandBus.ExecuteAsync<ConcurrentSampleCommand, SampleResult>(command),
-            commandBus.ExecuteAsync<ConcurrentSampleCommand, SampleResult>(command),
-            commandBus.ExecuteAsync<ConcurrentSampleCommand, SampleResult>(command)
+            command.ExecuteAsync(serviceProvider, CancellationToken.None),
+            command.ExecuteAsync(serviceProvider, CancellationToken.None),
+            command.ExecuteAsync(serviceProvider, CancellationToken.None)
         };
 
-        await Task.Delay(100);
+        await Task.Delay(200); // Give time for tasks to start and acquire the semaphore
 
         // Assert
-        var concurrentHandlerField = typeof(ConcurrentCommandBus)
-            .GetField(
-                name: "_handlers",
-                BindingFlags.NonPublic
-                | BindingFlags.Instance
-            );
+        var busField = typeof(ConcurrentCommandExtensions)
+            .GetField(name: "Bus", BindingFlags.NonPublic | BindingFlags.Static);
 
-        Assert.NotNull(concurrentHandlerField);
+        Assert.NotNull(busField);
+        var busInstance = busField.GetValue(null);
+        Assert.NotNull(busInstance);
 
-        var handlers = (ConcurrentDictionary<string, ConcurrentHandler>?)concurrentHandlerField
-            .GetValue(commandBus.GetType().FullName);
+        var handlersField = typeof(ConcurrentCommandBus)
+            .GetField(name: "_handlers", BindingFlags.NonPublic | BindingFlags.Instance);
 
+        Assert.NotNull(handlersField);
+        var handlers = (ConcurrentDictionary<string, ConcurrentHandler>?)handlersField.GetValue(busInstance);
         Assert.NotNull(handlers);
 
-        var semaphore = handlers[nameof(ConcurrentSampleCommand)].Semaphore;
+        var handlerKey = handlerMock.Object.GetType().FullName;
+        Assert.NotNull(handlerKey);
+        Assert.True(handlers.ContainsKey(handlerKey), userMessage: "The handler was not added to the bus's dictionary.");
+
+        var semaphore = handlers[handlerKey].Semaphore;
 
         Assert.Equal(expected: 0, semaphore.CurrentCount);
+
         await Task.WhenAll(tasks);
+
+        Assert.Equal(expectedConcurrentCount, semaphore.CurrentCount);
     }
 
     #endregion
