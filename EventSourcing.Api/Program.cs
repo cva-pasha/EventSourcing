@@ -35,13 +35,15 @@ app.MapGet(
     .WithOpenApi();
 
 app.MapGet(
-        pattern: "/commands/execute-and-no-wait",
-        () =>
+        pattern: "/commands/execute-and-forget",
+        (ILogger<Program> logger) =>
         {
-            new SampleCommand(1).Execute();
+            new FireAndForgetCommand(1).Execute();
+            logger.LogInformation(message: "FireAndForgetCommand with number {Number} has been dispatched.", 1);
+            return Results.Accepted(value: "Command dispatched. It will be processed in the background.");
         }
     )
-    .WithName("ExecuteCommand")
+    .WithName("ExecuteFireAndForgetCommand")
     .WithOpenApi();
 
 app.MapGet(
