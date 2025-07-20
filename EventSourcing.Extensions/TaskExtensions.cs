@@ -24,7 +24,7 @@ public static class TaskExtensions
 
         logger.Log(
             logLevel,
-            "{Operation} started execution.",
+            message: "{Operation} started execution.",
             operation
         );
 
@@ -36,7 +36,7 @@ public static class TaskExtensions
 
         logger.Log(
             logLevel,
-            "{Operation} finished execution in {ElapsedMilliseconds} ms.",
+            message: "{Operation} finished execution in {ElapsedMilliseconds} ms.",
             operation,
             sw.ElapsedMilliseconds
         );
@@ -64,7 +64,7 @@ public static class TaskExtensions
 
         logger.Log(
             logLevel,
-            "{Operation} started execution.",
+            message: "{Operation} started execution.",
             operation
         );
 
@@ -74,7 +74,7 @@ public static class TaskExtensions
 
         logger.Log(
             logLevel,
-            "{Operation} finished execution in {ElapsedMilliseconds} ms.",
+            message: "{Operation} finished execution in {ElapsedMilliseconds} ms.",
             operation,
             sw.ElapsedMilliseconds
         );

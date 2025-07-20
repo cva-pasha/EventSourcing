@@ -7,7 +7,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <Version>9.0.0</Version>
+        <Version>9.1.0</Version>
 
         <Description>Simplifies implementation of event sourcing with efficient in-memory event bus, powerful command bus, built-in concurrency control, and easy extensibility.</Description>
 
@@ -31,6 +31,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="EventSourcing.Tests.Unit"/>
+        <InternalsVisibleTo Include="EventSourcing.Tests.Unit" />
     </ItemGroup>
 </Project>
