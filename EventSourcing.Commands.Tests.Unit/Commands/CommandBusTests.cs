@@ -20,7 +20,10 @@ public class CommandBusTests
         commandBus.Subscribe(handlerMock.Object);
 
         // Assert
-        var handlersField = typeof(CommandBus).GetField(name: "_handlers", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handlersField = typeof(CommandBus).GetField(
+            name: "_handlers",
+            BindingFlags.NonPublic | BindingFlags.Instance
+        );
         var handlers = (ConcurrentDictionary<string, object>?)handlersField?.GetValue(commandBus);
 
         Assert.NotNull(handlers);
@@ -37,7 +40,7 @@ public class CommandBusTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => commandBus.Subscribe(handler));
     }
-    
+
     #endregion
 
     #region [ ExecuteAsync ]
@@ -80,7 +83,8 @@ public class CommandBusTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_Should_Throw_InvalidOperationException_When_Handler_Is_Not_Registered()
+    public async Task
+        ExecuteAsync_Should_Throw_InvalidOperationException_When_Handler_Is_Not_Registered()
     {
         // Arrange
         var command = new SampleCommand();
@@ -131,6 +135,33 @@ public class CommandBusTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => commandBus.Execute(command));
+    }
+
+    [Fact]
+    public async Task Execute_Should_Handle_Handler_Exceptions_Gracefully()
+    {
+        // Arrange
+        var handlerMock = new Mock<ICommandHandler<SampleCommand>>();
+        var commandBus = new CommandBus();
+        var command = new SampleCommand();
+
+        handlerMock.Setup(h => h.HandleAsync(
+                    It.IsAny<SampleCommand>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ThrowsAsync(new InvalidOperationException("Handler failed"));
+
+        commandBus.Subscribe(handlerMock.Object);
+
+        // Act - fire and forget should not throw immediately
+        commandBus.Execute(command);
+
+        // Wait for async execution
+        await Task.Delay(100);
+
+        // Assert
+        handlerMock.Verify(h => h.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion

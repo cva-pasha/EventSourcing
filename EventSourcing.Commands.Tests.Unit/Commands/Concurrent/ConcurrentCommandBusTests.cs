@@ -16,7 +16,8 @@ public class ConcurrentCommandBusTests
     public void Subscribe_Should_Register_Handler()
     {
         // Arrange
-        var handlerMock = new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
+        var handlerMock =
+            new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
         var commandBus = new ConcurrentCommandBus();
 
         // Act
@@ -26,7 +27,8 @@ public class ConcurrentCommandBusTests
         var handlersField = typeof(ConcurrentCommandBus)
             .GetField(name: "_handlers", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        var handlers = (ConcurrentDictionary<string, ConcurrentHandler>?)handlersField?.GetValue(commandBus);
+        var handlers =
+            (ConcurrentDictionary<string, ConcurrentHandler>?)handlersField?.GetValue(commandBus);
 
         Assert.NotNull(handlers);
         Assert.True(handlers.ContainsKey(typeof(ConcurrentSampleCommand).FullName!));
@@ -51,7 +53,8 @@ public class ConcurrentCommandBusTests
     public async Task ExecuteAsync_Should_Execute_Registered_Command_And_Return_Result()
     {
         // Arrange
-        var handlerMock = new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
+        var handlerMock =
+            new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
         var expectedResult = new SampleResult();
         var commandBus = new ConcurrentCommandBus();
         var command = new ConcurrentSampleCommand();
@@ -94,7 +97,8 @@ public class ConcurrentCommandBusTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_Should_Throw_InvalidOperationException_When_Handler_Is_Not_Registered()
+    public async Task
+        ExecuteAsync_Should_Throw_InvalidOperationException_When_Handler_Is_Not_Registered()
     {
         // Arrange
         var commandBus = new ConcurrentCommandBus();
@@ -113,11 +117,19 @@ public class ConcurrentCommandBusTests
         const int expectedConcurrentCount = 2;
 
         var command = new ConcurrentSampleCommand();
-        var handlerMock = new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
+        var handlerMock =
+            new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
         handlerMock.Setup(e => e.ConcurrentCount).Returns(expectedConcurrentCount);
         handlerMock
-            .Setup(e => e.HandleAsync(It.IsAny<ConcurrentSampleCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(async (ConcurrentSampleCommand _, CancellationToken ct) =>
+            .Setup(e => e.HandleAsync(
+                    It.IsAny<ConcurrentSampleCommand>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .Returns(async (
+                    ConcurrentSampleCommand _,
+                    CancellationToken ct
+                ) =>
                 {
                     await Task.Delay(millisecondsDelay: 1000, ct);
                     return new SampleResult();
@@ -150,12 +162,16 @@ public class ConcurrentCommandBusTests
             .GetField(name: "_handlers", BindingFlags.NonPublic | BindingFlags.Instance);
 
         Assert.NotNull(handlersField);
-        var handlers = (ConcurrentDictionary<string, ConcurrentHandler>?)handlersField.GetValue(busInstance);
+        var handlers =
+            (ConcurrentDictionary<string, ConcurrentHandler>?)handlersField.GetValue(busInstance);
         Assert.NotNull(handlers);
 
         var handlerKey = handlerMock.Object.GetType().FullName;
         Assert.NotNull(handlerKey);
-        Assert.True(handlers.ContainsKey(handlerKey), userMessage: "The handler was not added to the bus's dictionary.");
+        Assert.True(
+            handlers.ContainsKey(handlerKey),
+            userMessage: "The handler was not added to the bus's dictionary."
+        );
 
         var semaphore = handlers[handlerKey].Semaphore;
 
@@ -172,7 +188,8 @@ public class ConcurrentCommandBusTests
         // Arrange
         var command = new ConcurrentSampleCommand();
         var expectedResult = new SampleResult();
-        var handlerMock = new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
+        var handlerMock =
+            new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
         handlerMock.Setup(h => h.ConcurrentCount).Returns(1);
 
         handlerMock
@@ -199,7 +216,8 @@ public class ConcurrentCommandBusTests
     public async Task Execute_Should_Execute_Registered_Command_And_Return_Result()
     {
         // Arrange
-        var handlerMock = new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
+        var handlerMock =
+            new Mock<IConcurrentCommandHandler<ConcurrentSampleCommand, SampleResult>>();
         var expectedResult = new SampleResult();
         var commandBus = new ConcurrentCommandBus();
         var command = new ConcurrentSampleCommand();
@@ -238,6 +256,325 @@ public class ConcurrentCommandBusTests
         Assert.Throws<ArgumentNullException>(() =>
             commandBus.Execute<ConcurrentSampleCommand, SampleResult>(command)
         );
+    }
+
+    #endregion
+
+    #region [ ExecuteAsync Dynamic ]
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Execute_Handler_Successfully()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var handler = new TestDynamicHandler();
+        var type = typeof(ConcurrentSampleCommand);
+
+        // Act
+        var result = await commandBus.ExecuteAsync(
+            type,
+            command,
+            handler
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(handler.WasCalled);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Throw_ArgumentNullException_When_Type_Is_Null()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var handler = new TestDynamicHandler();
+        Type type = null!;
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() => commandBus.ExecuteAsync(
+                type,
+                command,
+                handler
+            )
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Throw_When_Handler_Is_Null()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var type = typeof(ConcurrentSampleCommand);
+        dynamic handler = null!;
+
+        // Act & Assert
+        // Dynamic handler being null causes RuntimeBinderException due to ambiguous ThrowIfNull overloads
+        await Assert.ThrowsAsync<Microsoft.CSharp.RuntimeBinder.RuntimeBinderException>(() =>
+            commandBus.ExecuteAsync(
+                type,
+                command,
+                handler
+            )
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Throw_When_ConcurrentCount_Property_Missing()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var type = typeof(ConcurrentSampleCommand);
+        var handler = new HandlerWithoutConcurrentCount();
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await commandBus.ExecuteAsync(
+                type,
+                command,
+                handler
+            )
+        );
+        Assert.Contains(
+            expectedSubstring: "Property 'ConcurrentCount' not found on handler",
+            exception.Message
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Throw_When_HandleAsync_Method_Missing()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var type = typeof(ConcurrentSampleCommand);
+        var handler = new HandlerWithoutHandleAsync();
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await commandBus.ExecuteAsync(
+                type,
+                command,
+                handler
+            )
+        );
+        Assert.Contains(
+            expectedSubstring: "Method 'HandleAsync' not found on handler",
+            exception.Message
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Default_ConcurrentCount_To_One_When_Zero()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var handler = new TestDynamicHandlerWithZeroConcurrency();
+        var type = typeof(ConcurrentSampleCommand);
+
+        // Act
+        var result = await commandBus.ExecuteAsync(
+            type,
+            command,
+            handler
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(handler.WasCalled);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Default_ConcurrentCount_To_One_When_Negative()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var handler = new TestDynamicHandlerWithNegativeConcurrency();
+        var type = typeof(ConcurrentSampleCommand);
+
+        // Act
+        var result = await commandBus.ExecuteAsync(
+            type,
+            command,
+            handler
+        );
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(handler.WasCalled);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Use_GetOrAdd_For_Handler_Registration()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var handler = new TestDynamicHandler();
+        var type = typeof(ConcurrentSampleCommand);
+
+        // Act
+        var result1 = await commandBus.ExecuteAsync(
+            type,
+            command,
+            handler
+        );
+        var result2 = await commandBus.ExecuteAsync(
+            type,
+            command,
+            handler
+        );
+
+        // Assert
+        Assert.NotNull(result1);
+        Assert.NotNull(result2);
+        Assert.Equal(expected: 2, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Cache_Method_Info()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var handler = new TestDynamicHandler();
+        var type = typeof(ConcurrentSampleCommand);
+
+        // Act
+        await commandBus.ExecuteAsync(
+            type,
+            command,
+            handler
+        );
+        await commandBus.ExecuteAsync(
+            type,
+            command,
+            handler
+        );
+
+        // Assert
+        Assert.Equal(expected: 2, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Dynamic_Should_Release_Semaphore_On_Exception()
+    {
+        // Arrange
+        var commandBus = new ConcurrentCommandBus();
+        var command = new ConcurrentSampleCommand();
+        var handler = new ThrowingDynamicHandler();
+        var type = typeof(ConcurrentSampleCommand);
+
+        // Act & Assert
+        // Dynamic invocation wraps exceptions in TargetInvocationException
+        var exception1 =
+            await Assert.ThrowsAsync<TargetInvocationException>(() =>
+                commandBus.ExecuteAsync(
+                    type,
+                    command,
+                    handler
+                )
+            );
+        Assert.IsType<InvalidOperationException>(exception1.InnerException);
+
+        // Verify semaphore is released by executing again
+        var exception2 =
+            await Assert.ThrowsAsync<TargetInvocationException>(() =>
+                commandBus.ExecuteAsync(
+                    type,
+                    command,
+                    handler
+                )
+            );
+
+        Assert.IsType<InvalidOperationException>(exception2.InnerException);
+    }
+
+    #endregion
+
+    #region [ Test Helpers for Dynamic Execution ]
+
+    private class TestDynamicHandler
+    {
+        public int ConcurrentCount => 1;
+        public bool WasCalled { get; private set; }
+        public int CallCount { get; private set; }
+
+        public Task<SampleResult> HandleAsync(
+            ConcurrentSampleCommand command,
+            CancellationToken ct = default
+        )
+        {
+            WasCalled = true;
+            CallCount++;
+            return Task.FromResult(new SampleResult());
+        }
+    }
+
+    private class TestDynamicHandlerWithZeroConcurrency
+    {
+        public int ConcurrentCount => 0;
+        public bool WasCalled { get; private set; }
+
+        public Task<SampleResult> HandleAsync(
+            ConcurrentSampleCommand command,
+            CancellationToken ct = default
+        )
+        {
+            WasCalled = true;
+            return Task.FromResult(new SampleResult());
+        }
+    }
+
+    private class TestDynamicHandlerWithNegativeConcurrency
+    {
+        public int ConcurrentCount => -5;
+        public bool WasCalled { get; private set; }
+
+        public Task<SampleResult> HandleAsync(
+            ConcurrentSampleCommand command,
+            CancellationToken ct = default
+        )
+        {
+            WasCalled = true;
+            return Task.FromResult(new SampleResult());
+        }
+    }
+
+    private class HandlerWithoutConcurrentCount
+    {
+        // Missing ConcurrentCount property
+        public Task<SampleResult> HandleAsync(
+            ConcurrentSampleCommand command,
+            CancellationToken ct = default
+        )
+        {
+            return Task.FromResult(new SampleResult());
+        }
+    }
+
+    private class HandlerWithoutHandleAsync
+    {
+        public int ConcurrentCount => 1;
+        // Missing HandleAsync method
+    }
+
+    private class ThrowingDynamicHandler
+    {
+        public int ConcurrentCount => 1;
+
+        public Task<SampleResult> HandleAsync(
+            ConcurrentSampleCommand command,
+            CancellationToken ct = default
+        )
+        {
+            throw new InvalidOperationException("Handler failed");
+        }
     }
 
     #endregion
