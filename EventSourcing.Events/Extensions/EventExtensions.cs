@@ -1,20 +1,31 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace EventSourcing.Events.Extensions;
 
 /// <summary>
-///     Extension methods for <see cref="IEvent" />.
+/// Extension methods for <see cref="IEvent" />.
 /// </summary>
 public static class EventExtensions
 {
     private const string MethodName = "HandleAsync";
-    private static readonly ConcurrentDictionary<Type, Type> HandlerTypes = new();
-    private static readonly ConcurrentDictionary<Tuple<Type, Type>, MethodInfo> HandlerMethods = new();
+
+    private static readonly ConcurrentDictionary<Type, Type> HandlerTypes =
+        new(
+            concurrencyLevel: Environment.ProcessorCount,
+            capacity: 100
+        );
+
+    private static readonly ConcurrentDictionary<Tuple<Type, Type>, MethodInfo> HandlerMethods =
+        new(
+            concurrencyLevel: Environment.ProcessorCount,
+            capacity: 100
+        );
 
     /// <summary>
-    ///     Publishes an event to all subscribed handlers.
+    /// Publishes an event to all subscribed handlers.
     /// </summary>
     /// <typeparam name="TEvent">The type of the event.</typeparam>
     /// <param name="eventModel">The event model.</param>
@@ -30,16 +41,26 @@ public static class EventExtensions
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
         var eventType = typeof(TEvent);
-        var handlerType = HandlerTypes.GetOrAdd(eventType, t => typeof(IEventHandler<>).MakeGenericType(t));
+        var handlerType = HandlerTypes
+            .GetOrAdd(
+                eventType,
+                t => typeof(IEventHandler<>).MakeGenericType(t)
+            );
+
         var handlers = serviceProvider.GetServices(handlerType).Where(x => x != null);
 
-        var tasks = handlers.Select(handler => InvokeHandlerMethodAsync(eventModel, eventType, handler));
+        var tasks = handlers.Select(handler => InvokeHandlerMethodAsync(
+                eventModel,
+                eventType,
+                handler
+            )
+        );
 
         await Task.WhenAll(tasks);
     }
 
     /// <summary>
-    ///     Publishes an event to all subscribed handlers.
+    /// Publishes an event to all subscribed handlers.
     /// </summary>
     /// <typeparam name="TEvent">The type of the event.</typeparam>
     /// <param name="eventModel">The event model.</param>
@@ -52,7 +73,25 @@ public static class EventExtensions
     {
         ArgumentNullException.ThrowIfNull(eventModel);
         ArgumentNullException.ThrowIfNull(serviceProvider);
-        Task.Run(async () => await PublishAsync(eventModel, serviceProvider));
+
+        Task.Run(async () =>
+            {
+                try
+                {
+                    await PublishAsync(eventModel, serviceProvider);
+                }
+                catch (Exception ex)
+                {
+                    var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+                    var logger = loggerFactory.CreateLogger(nameof(EventSourcing));
+
+                    logger.LogError(
+                        ex,
+                        message: "Unhandled exception in fire-and-forget command execution"
+                    );
+                }
+            }
+        );
     }
 
     private static Task InvokeHandlerMethodAsync<TEvent>(
@@ -65,7 +104,10 @@ public static class EventExtensions
         return (Task)method.Invoke(handler, [eventModel])!;
     }
 
-    private static MethodInfo GetHandlerMethod(object? handler, Type eventType)
+    private static MethodInfo GetHandlerMethod(
+        object? handler,
+        Type eventType
+    )
     {
         var handlerType = handler!.GetType();
         var cacheKey = new Tuple<Type, Type>(handlerType, eventType);
