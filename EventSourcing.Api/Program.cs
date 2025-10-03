@@ -14,6 +14,8 @@ builder.Services
 
 var app = builder.Build();
 
+app.Services.UseEventSourcing();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -35,17 +37,19 @@ app.MapGet(
     .WithOpenApi();
 
 app.MapGet(
-        pattern: "/commands/execute-and-no-wait",
-        () =>
+        pattern: "/commands/execute-and-forget",
+        (ILogger<Program> logger) =>
         {
-            new SampleCommand(1).Execute();
+            new FireAndForgetCommand(1).Execute();
+            logger.LogInformation(message: "FireAndForgetCommand with number {Number} has been dispatched.", 1);
+            return Results.Accepted(value: "Command dispatched. It will be processed in the background.");
         }
     )
-    .WithName("ExecuteCommand")
+    .WithName("ExecuteFireAndForgetCommand")
     .WithOpenApi();
 
 app.MapGet(
-        pattern: "/commands/concurrent/execute-and-wait-all",
+        pattern: "/commands/concurrent/execute-one-by-one-and-wait",
         async (int count, CancellationToken ct) =>
         {
             var tasks = new List<Task<BaseResult>>();
@@ -69,7 +73,34 @@ app.MapGet(
     .WithOpenApi();
 
 app.MapGet(
-        pattern: "/commands/concurrent/execute-all-and-no-wait",
+        pattern: "/commands/concurrent/execute-parallel-and-wait",
+        async (
+            int count,
+            CancellationToken ct
+        ) =>
+        {
+            var tasks = new List<Task<BaseResult>>();
+            var number = 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                ++number;
+
+                tasks.Add(
+                    new ParallelConcurrentCommand(number)
+                        .ExecuteAsync(ct)
+                        .WithWatcher($"{nameof(ParallelConcurrentCommand)}_{number}", LogLevel.Information)
+                );
+            }
+
+            return await Task.WhenAll(tasks);
+        }
+    )
+    .WithName("ExecuteParallelConcurrentCommandAsync")
+    .WithOpenApi();
+
+app.MapGet(
+        pattern: "/commands/concurrent/execute-parallel-and-no-wait",
         (int count) =>
         {
             var number = 0;

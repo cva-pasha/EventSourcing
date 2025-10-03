@@ -1,6 +1,7 @@
 ﻿using EventSourcing.Commands;
 using EventSourcing.Commands.Extensions;
 using EventSourcing.Tests.Unit.Commands.Stubs;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EventSourcing.Tests.Unit.Commands;
 
@@ -21,7 +22,8 @@ public class DiCommandWithResultTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await command.ExecuteAsync(serviceProviderMock.Object));
+            await command.ExecuteAsync(serviceProviderMock.Object)
+        );
     }
 
     [Fact]
@@ -33,7 +35,8 @@ public class DiCommandWithResultTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            command.ExecuteAsync(mockServiceProvider.Object));
+            command.ExecuteAsync(mockServiceProvider.Object)
+        );
     }
 
     [Fact]
@@ -45,7 +48,8 @@ public class DiCommandWithResultTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            command.ExecuteAsync(serviceProvider));
+            command.ExecuteAsync(serviceProvider)
+        );
     }
 
     [Fact]
@@ -58,12 +62,38 @@ public class DiCommandWithResultTests
 
         mockServiceProvider
             .Setup(e =>
-                e.GetService(typeof(ICommandHandler<CommandWithResult, SampleResult>)))
+                e.GetService(typeof(ICommandHandler<CommandWithResult, SampleResult>))
+            )
             .Returns(handler);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            command.ExecuteAsync(mockServiceProvider.Object));
+            command.ExecuteAsync(mockServiceProvider.Object)
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithRegisteredHandler_ShouldInvokeAndReturnResult()
+    {
+        // Arrange
+        var command = new CommandWithResult();
+        var expectedResult = new SampleResult();
+        var handlerMock = new Mock<ICommandHandler<CommandWithResult, SampleResult>>();
+
+        handlerMock
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResult);
+
+        var serviceProvider = new ServiceCollection()
+            .AddSingleton(handlerMock.Object)
+            .BuildServiceProvider();
+
+        // Act
+        var result = await command.ExecuteAsync(serviceProvider);
+
+        // Assert
+        handlerMock.Verify(h => h.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(expectedResult, result);
     }
 
     #endregion
@@ -79,7 +109,8 @@ public class DiCommandWithResultTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            command.Execute(mockServiceProvider.Object));
+            command.Execute(mockServiceProvider.Object)
+        );
     }
 
     [Fact]
@@ -91,7 +122,8 @@ public class DiCommandWithResultTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            command.Execute(serviceProvider));
+            command.Execute(serviceProvider)
+        );
     }
 
     #endregion

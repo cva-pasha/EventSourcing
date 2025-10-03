@@ -2,9 +2,11 @@
 
 namespace EventSourcing.Api.Events;
 
-public record SampleEvent(int Number) : IEvent;
+public record SampleEvent(
+    int Number
+) : IEvent;
 
-public sealed class SampleEventHandler(
+internal sealed class SampleEventHandler(
     ILogger<SampleEventHandler> logger
 )
     : IEventHandler<SampleEvent>
@@ -17,7 +19,7 @@ public sealed class SampleEventHandler(
     }
 }
 
-public sealed class AnotherSampleEventHandler(
+internal sealed class AnotherSampleEventHandler(
     ILogger<AnotherSampleEventHandler> logger
 )
     : IEventHandler<SampleEvent>

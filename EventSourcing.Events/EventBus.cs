@@ -12,7 +12,10 @@ public class EventBus : IEventBus
     /// </summary>
     public EventBus()
     {
-        _handlers = new ConcurrentDictionary<string, List<object>>();
+        _handlers = new ConcurrentDictionary<string, List<object>>(
+            concurrencyLevel: Environment.ProcessorCount,
+            capacity: 100
+        );
     }
 
     /// <inheritdoc />
@@ -29,9 +32,13 @@ public class EventBus : IEventBus
     {
         ArgumentNullException.ThrowIfNull(eventModel);
         var type = typeof(TEvent).Name;
+
         if (!_handlers.TryGetValue(type, out var handlers))
+        {
             throw new InvalidOperationException(
-                $"Handler for event type {type} not registered.");
+                $"Handler for event type {type} not registered."
+            );
+        }
 
         foreach (var handler in handlers)
             if (handler is IEventHandler<TEvent> eventHandler)

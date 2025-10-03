@@ -2,221 +2,219 @@
 [![NuGet](https://img.shields.io/nuget/v/EventSourcing.Extensions)](https://www.nuget.org/packages/EventSourcing.Extensions)
 
 ## Overview
-The `EventSourcing` library for .NET provides a robust, flexible, and efficient framework for implementing event sourcing in your .NET applications. This library facilitates capturing changes to an application's state as a series of events, allowing for easy auditing, debugging, and replaying of events to restore state.
+The `EventSourcing` library for .NET provides a robust, flexible, and efficient framework for implementing event sourcing in your .NET applications. This library facilitates capturing changes to an application's state as a series of events, allowing for easy auditing, debugging, and replaying of events to restore state. It is built with dependency injection (DI) at its core, enabling seamless integration with modern .NET applications.
 
 ## Features
-- **EventBus**: Efficiently publish and subscribe to events using an in-memory event bus with support for dependency injection (DI).
-- **CommandBus**: Simplify command handling with a powerful command bus that supports both synchronous and asynchronous command execution.
-- **Queries**: Separating queries from commands enhances maintainability, performance, scalability, security, and simplifies testing by clearly distinguishing between read and write operations.
-- **Concurrency Control**: Manage concurrent command executions with built-in concurrency handling mechanisms to ensure data integrity.
-- **Extensibility**: Easily extend and customize the framework to fit your specific needs, with interfaces and abstractions that promote clean architecture principles.
-- **Dependency Injection**: Seamlessly integrate with the .NET dependency injection (DI) container to resolve and inject event and command handlers.
+- **EventBus**: Efficiently publish and subscribe to events. Supports both manual subscriptions and automatic DI-based handler resolution.
+- **CommandBus**: Simplify command handling with a powerful command bus that supports synchronous, asynchronous, and fire-and-forget command execution.
+- **Fire-and-Forget Execution**: Execute commands and events in the background without awaiting a response, ideal for long-running or non-critical tasks.
+- **Queries**: Separate read and write operations to enhance maintainability, performance, and scalability.
+- **Concurrency Control**: Manage concurrent command executions with a built-in semaphore-based mechanism to ensure data integrity.
+- **Extensibility**: Easily extend and customize the framework to fit your specific needs.
+- **Dependency Injection**: Seamlessly integrate with the .NET DI container. Use `AddEventSourcing()` to automatically scan assemblies and register all your handlers.
+- **Centralized Context**: `EventSourcingContext` provides a static entry point for service resolution, simplifying access to your services from anywhere in your application.
+- **Logging**: Built-in logging for handler registration and performance monitoring of command, event, and query execution.
 
 ### Handlers
 - **Visibility**: All handlers must be public.
-
-- **Events Handlers**: These are executed in parallel. If no public handlers are found, execution will complete without errors.
-- **Queries Handlers**: Only one handler can be registered for each query type.
-- **Commands Handlers**: These are also executed in parallel. For asynchronous execution, the system waits for all handlers to finish, and the response is taken from the first handler that completes.
-- **Concurrency Handlers**: These handlers are executed in parallel, with concurrency control applied per handler type.
+- **Event Handlers**: Executed in parallel. If no public handlers are found, execution completes without errors.
+- **Query Handlers**: Only one handler can be registered per query type.
+- **Command Handlers**: Executed in parallel. For commands returning a result, the response from the first handler to complete is returned.
+- **Concurrent Command Handlers**: Executed in parallel, with concurrency control applied per handler type using a semaphore.
 
 ### Dependency Injection
-The `EventSourcingExtensions` class provides extension methods designed for configuring event sourcing within a .NET application. It facilitates the registration of event and command handlers into the dependency injection (DI) container. This is achieved by specifying an array of Type objects representing the types from which event or command handlers should be registered. This ensures that handlers are correctly resolved and utilized throughout the application.
+The `EventSourcingExtensions` class is the cornerstone of the library's DI integration.
 
-Registration of handlers are categorized into:
-- Command handlers: `ICommandHandler<>` and `ICommandHandler<,>`
-- Concurrent command handlers: `IConcurrentCommandHandler<,>`
-- Event handlers: `IEventHandler<>`
+- **`AddEventSourcing(params Type[] types)`**: This extension method scans the assemblies of the provided types and automatically registers all found command, event, and query handlers in the DI container. By default, handlers are registered with a transient lifetime.
 
-All identified handlers are registered as transient services in the DI container using the `TryAddTransient` method, which prevents duplicate registrations.
+- **`UseEventSourcing(this IServiceProvider serviceProvider)`**: This method configures the `EventSourcingContext` with the application's `IServiceScopeFactory`, enabling static access to services throughout the application.
 
-### EventBus
-The `EventBus` class supports both manual subscription of handlers for fine-grained control and automated registration via dependency injection (DI) for convenience and flexibility. This makes it suitable for implementing event-driven architectures and facilitating communication between different components of your application.
+### EventSourcingContext
+`EventSourcingContext` is a static class that provides a convenient way to resolve services and create service scopes without needing to inject `IServiceProvider` everywhere. This is particularly useful for executing commands, events, and queries directly from your domain objects.
 
-**Features**
-- **Manual Subscription**:
-You can manually subscribe event handlers `IEventHandler<TEvent>` to specific generic event types `TEvent` using the `Subscribe` method. This allows precise control over which handlers receive which events.
+- **`CreateScope()`**: Creates a new `IServiceScope`.
+- **`GetService<T>()` / `GetRequiredService<T>()`**: Resolves a service from the DI container within a new scope.
+- **`Logger`**: Provides a static logger instance for the library.
 
-- **Dependency Injection (DI) Support**:
-Alternatively, handlers can be automatically registered using the `AddEventSourcing` method from `EventSourcingExtensions`.
-
-**Key Points**
-- **Concurrency**: Utilizes `ConcurrentDictionary` for thread-safe handling of event handlers.
-- **Error Handling**: Throws exceptions when attempting to publish an event without any registered handlers.
-- **Synchronously publishes**: An event by invoking `Publish` on a background task.
-- **Asynchronous Handling**: Supports asynchronous event handling via `PublishAsync`.
-
-### CommandBus
-The `CommandBus` class facilitates the execution of commands within your application, supporting both simple and result-returning commands. It is designed to be flexible and extendable, allowing developers to easily integrate and manage command handling logic. Class supports both manual subscription of handlers for fine-grained control and automated registration via dependency injection (DI) for convenience and flexibility. 
-
-**Features**
-- **Manual Subscription**:
-You can manually subscribe command handlers `ICommandHandler<TCommand>` to specific generic command types `TCommand` using the `Subscribe` method. This allows precise control over which handlers receive which commands.
-
-- **Dependency Injection (DI) Support**:
-Alternatively, handlers can be automatically registered using the `AddEventSourcing` method from `EventSourcingExtensions`.
-
-**Key Points**
-- **Concurrency**: Utilizes `ConcurrentDictionary` for thread-safe handling of command handlers.
-- **Error Handling**: Throws exceptions when attempting to execute a command without a registered handler or if the handler type does not match.
-- **Synchronously executes**: An command by invoking `Execute` on a background task.
-- **Asynchronousle executes**: Supports asynchronous command handling via `ExecuteAsync`.
-
-### Queries
-- **Separation of Concerns**: Dividing queries from commands ensures a clear distinction between operations that change state (commands) and those that only retrieve data (queries). This separation enhances maintainability and readability of the code.
-- **Optimized Performance**: Queries can be optimized for read performance, while commands can be optimized for write performance. This allows for more efficient handling of data access and modification.
-- **Scalability**: Separating queries and commands allows for independent scaling. Read-heavy operations can be scaled differently from write-heavy operations, improving the overall performance and scalability of the system.
-- **Security and Validation**: Commands often require validation and authorization checks before altering the state, while queries typically do not. This separation allows for more granular control over security policies.
-- **Simplified Testing**: Dividing queries from commands simplifies unit testing. Queries can be tested independently of the state-changing logic, and vice versa, leading to more isolated and reliable tests.
-
-**Features**
-
-- **Dependency Injection (DI) Support**:
-Alternatively, handlers can be automatically registered using the AddEventSourcing method from EventSourcingExtensions.
+### Execution Flow
+With `EventSourcingContext` configured, you can execute commands, publish events, and execute queries directly on the respective objects. The library's extension methods will use the context to create a service scope and resolve the necessary handlers.
 
 ## Getting Started
-For additional examples and usage details, please use [EventSourcing.Api](https://github.com/covali-pavel-developer/EventSourcing/tree/main/EventSourcing.Api) project. 
+For additional examples and usage details, please see the [EventSourcing.Api](https://github.com/covali-pavel-developer/EventSourcing/tree/main/EventSourcing.Api) project.
 
 ### Installation
-Add the EventSourcing library to your project via NuGet:
+Add the EventSourcing.Extensions library to your project via NuGet:
 ```bash
-dotnet add package EventSourcing
+dotnet add package EventSourcing.Extensions
 ```
 
 ### Usage
-#### EventBus Setup
-To set up the EventBus for managing events, you can use the following approach:
+#### 1. Configuration
+In your `Program.cs` or startup class, configure Event Sourcing by registering handlers and setting up the context.
 
-Define your custom events by implementing the respective interfaces:
 ```csharp
-public class UserRegisteredEvent : IEvent 
-{
-    public string UserId { get; set; }
-    public DateTime RegisteredAt { get; set; }
-}
+// Program.cs
+using EventSourcing.Extensions;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddControllers();
+
+// 1. Add EventSourcing and scan for handlers in the specified assemblies
+builder.Services.AddEventSourcing(typeof(Program)); 
+
+var app = builder.Build();
+
+// 2. Configure the EventSourcingContext
+app.Services.UseEventSourcing(); 
+
+// ... rest of the configuration
 ```
 
-Implement handlers for your events:
+#### 2. Define your Commands, Events, and Queries
 ```csharp
-public class UserRegisteredEventHandler : IEventHandler<UserRegisteredEvent>
-{
-    public async Task HandleAsync(UserRegisteredEvent eventModel, CancellationToken ct = default)
-    {
-        // Handle the event
-    }
-}
-```
+// In your application's domain layer
 
-Manually subscribe event handlers:
-```csharp
-var eventBus = new EventBus();
-eventBus.Subscribe(new UserRegisteredEvent());
-await eventBus.PublishAsync(new UserRegisteredEvent());
-```
-
-Alternatively, use DI for automatic registration in your `Program.cs`:
-```csharp
-services.AddEventSourcing(typeof(UserRegisteredEvent));
-await new UserRegisteredEvent().PublishAsync();
-```
-
-Alternatively, register IEventBus to yor DI container:
-```csharp
-services.AddSingleton<IEventBus, EventBus>();
-```
-
-Now publish events using the event bus:
-```csharp
-var eventBus = serviceProvider.GetRequiredService<IEventBus>();
-await eventBus.PublishAsync(new UserRegisteredEvent 
-{
-    UserId = "12345",
-    RegisteredAt = DateTime.UtcNow
-});
-```
-
-#### CommandBus Setup
-To configure the CommandBus for executing commands, follow these steps:
-
-Define your custom commands by implementing the respective interfaces:
-```csharp
+// Command with no result
 public class RegisterUserCommand : ICommand 
 {
     public string UserName { get; set; }
     public string Email { get; set; }
 }
 
-public class DeleteUserCommand : ICommand<bool>
+// Command with a result
+public class GetUserTokenCommand : ICommand<string>
 {
-    public string Id { get; set; }
+    public string UserId { get; set; }
 }
+
+// Event
+public class UserRegisteredEvent : IEvent 
+{
+    public string UserId { get; set; }
+}
+
+// Query
+public record GetUserByIdQuery(string Id) : IQuery<User>;
 ```
 
-Implement handlers for your commands:
+#### 3. Implement Handlers
+Handlers are simple classes that implement the corresponding `I...Handler` interface. They will be automatically discovered by `AddEventSourcing`.
+
 ```csharp
+// Command Handler
 public class RegisterUserCommandHandler : ICommandHandler<RegisterUserCommand>
 {
     public async Task HandleAsync(RegisterUserCommand command, CancellationToken ct = default)
     {
-        // Handle the command
+        // ... logic to register a user
+        
+        // Publish an event after the command is handled
+        await new UserRegisteredEvent { UserId = "123" }.PublishAsync();
     }
 }
 
-public class DeleteUserCommandHandler : ICommandHandler<DeleteUserCommand, bool>
+// Event Handler
+public class UserRegisteredEventHandler : IEventHandler<UserRegisteredEvent>
 {
-    public async Task<bool> HandleAsync(DeleteUserCommand command, CancellationToken ct = default)
+    public Task HandleAsync(UserRegisteredEvent eventModel, CancellationToken ct = default)
     {
-        // Handle the command
+        // ... logic to handle the user registration event (e.g., send a welcome email)
+        return Task.CompletedTask;
+    }
+}
+
+// Query Handler
+public class GetUserByIdQueryHandler : IQueryHandler<GetUserByIdQuery, User>
+{
+    public async Task<User> HandleAsync(GetUserByIdQuery query, CancellationToken ct = default)
+    {
+        // ... logic to retrieve a user from the database
+        return new User { Id = query.Id, Name = "John Doe" };
     }
 }
 ```
 
-Manually subscribe commands handlers:
+#### 4. Execute from your Application
+Now you can execute commands, publish events, and run queries from anywhere in your application, such as an API controller or another service.
+
+```csharp
+[ApiController]
+[Route("[controller]")]
+public class UsersController : ControllerBase
+{
+    [HttpPost]
+    public async Task<IActionResult> RegisterUser([FromBody] RegisterUserCommand command)
+    {
+        // Execute a command that returns a result
+        await command.ExecuteAsync();
+        return Ok();
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetUser(string id)
+    {
+        // Execute a query
+        var user = await new GetUserByIdQuery(id).ExecuteAsync();
+        return Ok(user);
+    }
+    
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(string userId)
+    {
+        // Execute a command that returns a result
+        var token = await new GetUserTokenCommand { UserId = userId }.ExecuteAsync();
+        return Ok(token);
+    }
+}
+```
+
+#### Fire-and-Forget Execution
+For operations that don't need to block the calling thread, use the `Execute()` or `Publish()` methods. These run the operation on a background thread.
+
+```csharp
+public void SomeLongRunningProcess()
+{
+    var command = new SomeLongRunningCommand();
+    
+    // The method returns immediately
+    command.Execute(); 
+}
+```
+Any exceptions during fire-and-forget execution are automatically caught and logged.
+
+#### Concurrent Commands
+For commands that require concurrency control, implement `IConcurrentCommand<TResult>`. The library ensures that only a specified number of handlers of the same type can execute concurrently.
+
+```csharp
+// Concurrent Command
+public class ProcessPaymentCommand : IConcurrentCommand<bool>
+{
+    public decimal Amount { get; set; }
+}
+
+// Concurrent Command Handler
+public class ProcessPaymentCommandHandler : IConcurrentCommandHandler<ProcessPaymentCommand, bool>
+{
+    public async Task<bool> HandleAsync(ProcessPaymentCommand command, CancellationToken ct = default)
+    {
+        // ... payment processing logic
+        return true;
+    }
+}
+
+// Execution is the same
+var paymentResult = await new ProcessPaymentCommand { Amount = 99.99m }.ExecuteAsync();
+```
+
+### Manual Bus (Advanced)
+While the DI-based approach is recommended, you can still use the manual `EventBus` and `CommandBus` if you need more control over handler subscriptions.
+
 ```csharp
 var commandBus = new CommandBus();
 commandBus.Subscribe(new RegisterUserCommandHandler());
-commandBus.Subscribe(new DeleteUserCommandHandler());
 await commandBus.ExecuteAsync(new RegisterUserCommand());
-```
-
-Alternatively, use DI for automatic registration in your `Program.cs`:
-```csharp
-services.AddEventSourcing(typeof(RegisterUserCommand));
-await new RegisterUserCommand().ExecuteAsync();
-```
-
-Alternatively, register ICommandBus to yor DI container:
-```csharp
-services.AddSingleton<ICommandBus, CommandBus>();
-```
-
-Now publish events using the event bus:
-```csharp
-var commandBus = serviceProvider.GetRequiredService<ICommandBus>();
-await commandBus.ExecuteAsync(new RegisterUserCommand 
-{
-    UserName = "JohnDoe",
-    Email = "john.doe@example.com"
-});
-```
-
-#### Queries Setup
-To configure the Queries for executing, follow these steps:
-
-Define your query by implementing the respective interfaces:
-```csharp
-public record GetUserQuery(string Id) : IQuery<CustomerEntity>;
-```
-
-Implement handlers for your query:
-```csharp
-public sealed class GetUserQueryHandler : IQueryHandler<GetUserQuery, CustomerEntity>
-{
-    public async Task<CustomerEntity> HandleAsync(GetUserQuery query, CancellationToken ct = default)
-    {
-        // Handle the query
-    }
-}
 ```
 
 ### Contributing

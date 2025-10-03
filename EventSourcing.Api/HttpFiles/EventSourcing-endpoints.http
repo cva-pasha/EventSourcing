@@ -1,12 +1,12 @@
-@baseUrl = https://localhost:44390
+@baseUrl = https://localhost:7205
 
 ### Commands - Execute and Wait Response
 
 GET {{baseUrl}}/commands/execute-and-wait-response
 
-### Commands - Execute and No Wait
+### Commands - Execute and Forget
 
-GET {{baseUrl}}/commands/execute-and-no-wait
+GET {{baseUrl}}/commands/execute-and-forget
 
 ### Commands - Execute all concurrent and Wait
 
