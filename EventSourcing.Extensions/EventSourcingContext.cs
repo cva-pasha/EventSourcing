@@ -11,13 +11,8 @@ public static class EventSourcingContext
 {
     internal static IServiceScopeFactory ScopeFactory { get; private set; } = null!;
 
-    internal static ILogger Logger => GetRequiredService<ILoggerFactory>().CreateLogger(nameof(EventSourcing));
-
-    /// <summary>
-    /// Creates a new service scope and provides access to its service provider.
-    /// </summary>
-    /// <returns>The <see cref="IServiceProvider"/> from the newly created scope.</returns>
-    public static IServiceProvider ServiceProvider => ScopeFactory.CreateScope().ServiceProvider;
+    internal static ILogger Logger =>
+        GetRequiredService<ILoggerFactory>().CreateLogger(nameof(EventSourcing));
 
     /// <summary>
     /// Sets the application's <see cref="IServiceScopeFactory"/> for creating new service scopes.
@@ -28,6 +23,14 @@ public static class EventSourcingContext
     public static void SetScopeFactory(IServiceScopeFactory scopeFactory)
     {
         ScopeFactory = scopeFactory;
+    }
+
+    /// <summary>
+    /// Creates a new service scope. The caller MUST dispose of the scope when done.
+    /// </summary>
+    public static IServiceScope CreateScope()
+    {
+        return ScopeFactory.CreateScope();
     }
 
     /// <summary>
