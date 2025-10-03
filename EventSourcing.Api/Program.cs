@@ -14,6 +14,8 @@ builder.Services
 
 var app = builder.Build();
 
+app.Services.UseEventSourcing();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
