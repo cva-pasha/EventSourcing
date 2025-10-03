@@ -5,18 +5,26 @@ using EventSourcing.Commands.Concurrent.Internal;
 namespace EventSourcing.Commands.Concurrent;
 
 /// <inheritdoc cref="IConcurrentCommandBus" />
-public class ConcurrentCommandBus : IConcurrentCommandBus
+public class ConcurrentCommandBus : IConcurrentCommandBus, IDisposable
 {
     private const string MethodName = "HandleAsync";
     private readonly ConcurrentDictionary<string, ConcurrentHandler> _handlers;
-    private static readonly ConcurrentDictionary<Tuple<Type, Type>, MethodInfo> HandlerMethods = new();
+
+    private static readonly ConcurrentDictionary<Tuple<Type, Type>, MethodInfo> HandlerMethods =
+        new(
+            concurrencyLevel: Environment.ProcessorCount,
+            capacity: 100
+        );
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="CommandBus" /> class.
     /// </summary>
     public ConcurrentCommandBus()
     {
-        _handlers = new ConcurrentDictionary<string, ConcurrentHandler>();
+        _handlers = new ConcurrentDictionary<string, ConcurrentHandler>(
+            concurrencyLevel: Environment.ProcessorCount,
+            capacity: 100
+        );
     }
 
     /// <inheritdoc />
@@ -88,7 +96,9 @@ public class ConcurrentCommandBus : IConcurrentCommandBus
         var propertyInfo = handlerType.GetProperty("ConcurrentCount");
         if (propertyInfo == null)
         {
-            throw new InvalidOperationException($"Property 'ConcurrentCount' not found on handler '{handlerType.FullName}'.");
+            throw new InvalidOperationException(
+                $"Property 'ConcurrentCount' not found on handler '{handlerType.FullName}'."
+            );
         }
 
         var concurrentCount = (int)propertyInfo.GetValue(handler)!;
@@ -117,7 +127,10 @@ public class ConcurrentCommandBus : IConcurrentCommandBus
         }
     }
 
-    private static MethodInfo GetHandlerMethod(object? handler, Type commandType)
+    private static MethodInfo GetHandlerMethod(
+        object? handler,
+        Type commandType
+    )
     {
         var handlerType = handler!.GetType();
         var cacheKey = new Tuple<Type, Type>(handlerType, commandType);
@@ -137,5 +150,16 @@ public class ConcurrentCommandBus : IConcurrentCommandBus
 
         HandlerMethods.TryAdd(cacheKey, method);
         return method;
+    }
+
+    public void Dispose()
+    {
+        foreach (var handler in _handlers.Values)
+        {
+            handler.Semaphore.Dispose();
+        }
+
+        _handlers.Clear();
+        GC.SuppressFinalize(this);
     }
 }

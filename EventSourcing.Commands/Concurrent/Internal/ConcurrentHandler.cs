@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace EventSourcing.Commands.Concurrent.Internal;
+﻿namespace EventSourcing.Commands.Concurrent.Internal;
 
 internal sealed record ConcurrentHandler(
     object Handler,
